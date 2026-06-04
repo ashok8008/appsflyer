@@ -5,6 +5,8 @@ import { signToken, hashPassword, verifyPassword, getUserFromRequest, requireRol
 import { ensureSeeded } from '@/lib/seed'
 import { importRawReport, fetchAggregatedJSON } from '@/lib/appsflyer'
 import { cors, json, err, shortCode, parseDateRange } from '@/lib/api-utils'
+import { startScheduler, getSchedulerState, runHourlySync, runNightlyResync, runDailyEmails } from '@/lib/scheduler'
+import { sendDailyEmails } from '@/lib/emails/daily-report'
 
 export async function OPTIONS() {
   return cors(new NextResponse(null, { status: 200 }))
@@ -167,6 +169,8 @@ async function handle(request, { params }) {
   try {
     const db = await getDb()
     await ensureSeeded()
+    // Initialize scheduler on first request (lazy singleton)
+    startScheduler().catch(e => console.error('scheduler error', e))
 
     // ===== PUBLIC: click redirect =====
     if (path.startsWith('/click/') && method === 'GET') {
@@ -521,6 +525,44 @@ async function handle(request, { params }) {
     }
     if (path === '/appsflyer/imports' && method === 'GET' && isAdmin) {
       const list = await db.collection('appsflyer_raw_imports').find({}).sort({ created_at: -1 }).limit(50).toArray()
+      return json(strip(list))
+    }
+    if (path === '/appsflyer/scheduler' && method === 'GET' && isAdmin) {
+      const state = getSchedulerState()
+      // last successful per report type
+      const lastSuccess = {}
+      for (const rt of ['installs_report', 'in_app_events_report']) {
+        const r = await db.collection('appsflyer_raw_imports').findOne({ report_type: rt, status: 'success' }, { sort: { created_at: -1 } })
+        if (r) lastSuccess[rt] = { from_date: r.from_date, to_date: r.to_date, rows_imported: r.rows_imported, duration_ms: r.duration_ms, completed_at: r.completed_at, trigger: r.trigger }
+      }
+      const recentFailures = await db.collection('appsflyer_raw_imports').find({ status: 'failed' }).sort({ created_at: -1 }).limit(5).toArray()
+      const notifications = await db.collection('notifications').find({ read: false }).sort({ created_at: -1 }).limit(10).toArray()
+      return json({ state, last_success: lastSuccess, recent_failures: strip(recentFailures), notifications: strip(notifications) })
+    }
+    if (path === '/appsflyer/scheduler/run-hourly' && method === 'POST' && isAdmin) {
+      runHourlySync().catch(e => console.error(e))
+      return json({ ok: true, started: true })
+    }
+    if (path === '/appsflyer/scheduler/run-nightly' && method === 'POST' && isAdmin) {
+      runNightlyResync().catch(e => console.error(e))
+      return json({ ok: true, started: true })
+    }
+    if (path === '/notifications/mark-read' && method === 'POST' && isAdmin) {
+      await db.collection('notifications').updateMany({ read: false }, { $set: { read: true, read_at: new Date() } })
+      return json({ ok: true })
+    }
+    if (path === '/emails/send-daily' && method === 'POST' && isAdmin) {
+      const body = await request.json().catch(() => ({}))
+      try {
+        const result = await sendDailyEmails({ forDate: body.date })
+        await audit(db, user, 'send_daily_emails', 'system', null, { date: body.date || 'yesterday' })
+        return json(result)
+      } catch (e) {
+        return err(String(e.message || e), 500)
+      }
+    }
+    if (path === '/emails/logs' && method === 'GET' && isAdmin) {
+      const list = await db.collection('daily_report_emails').find({}).sort({ sent_at: -1 }).limit(100).toArray()
       return json(strip(list))
     }
     if (path === '/appsflyer/aggregated' && method === 'GET' && isAdmin) {

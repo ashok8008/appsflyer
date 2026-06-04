@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { BarChart3, Users, Briefcase, Link2, FileBarChart, RefreshCw, Settings, UserCog, LogOut, MapPin } from 'lucide-react'
+import { BarChart3, Users, Briefcase, Link2, FileBarChart, RefreshCw, Settings, UserCog, LogOut, MapPin, Mail } from 'lucide-react'
 import DashboardView from './DashboardView'
 import PublishersView from './PublishersView'
 import CampaignsView from './CampaignsView'
@@ -9,6 +9,7 @@ import PlacementsView from './PlacementsView'
 import TrackingLinksView from './TrackingLinksView'
 import ReportsView from './ReportsView'
 import SyncView from './SyncView'
+import EmailsView from './EmailsView'
 import AdminUsersView from './AdminUsersView'
 import SettingsView from './SettingsView'
 
@@ -20,6 +21,7 @@ const nav = [
   { id: 'links', label: 'Tracking Links', icon: Link2 },
   { id: 'reports', label: 'Reports', icon: FileBarChart },
   { id: 'sync', label: 'AppsFlyer Sync', icon: RefreshCw },
+  { id: 'emails', label: 'Daily Emails', icon: Mail },
   { id: 'users', label: 'Admin Users', icon: UserCog },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -74,6 +76,7 @@ export default function AdminApp({ me, onLogout }) {
           {view === 'links' && <TrackingLinksView />}
           {view === 'reports' && <ReportsView />}
           {view === 'sync' && <SyncView />}
+          {view === 'emails' && <EmailsView />}
           {view === 'users' && <AdminUsersView me={me} />}
           {view === 'settings' && <SettingsView />}
         </div>

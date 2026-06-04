@@ -273,42 +273,58 @@ backend:
 frontend:
   - task: "Login + role-based shell (Admin/Publisher)"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/app/page.js, /app/components/Login.jsx, /app/components/admin/AdminApp.jsx, /app/components/publisher/PublisherApp.jsx"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Super Admin login works perfectly with prefilled credentials (admin@clickvibe.com / admin123). Blue gradient background, Clickvibe branding present. Admin Console loads with all 10 sidebar items (Dashboard, Publishers, Campaigns, Placements, Tracking Links, Reports, AppsFlyer Sync, Daily Emails, Admin Users, Settings). Role-based routing works correctly. Publisher login attempted but publisher user (pop@test.com) does not exist in database - needs to be created via Add User flow in Publishers tab."
 
-  - task: "Admin Views (Dashboard, Publishers, Campaigns, Placements, Tracking Links, Reports, Sync, Users, Settings)"
+  - task: "Admin Views (Dashboard, Publishers, Campaigns, Placements, Tracking Links, Reports, Sync, Emails, Users, Settings)"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/components/admin/*.jsx"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "All admin views tested and working: Dashboard shows stat cards (Clicks, Installs, Events, CVR, Revenue) with daily performance chart and Top Publishers/Campaigns tables. Publishers view shows POPCULTURE_TEST publisher with active badge. Campaigns view shows Polymarket campaign (CPI $3 USD, ios, active). Tracking Links view displays multiple active links with format https://trackcenter.info/api/click/{code}. Reports view has all metric cards and group_by functionality. AppsFlyer Sync view shows scheduler status 'Running' badge and Sync Last 24h button works. Daily Emails view shows Send daily reports card and history table with sent emails. Admin Users view shows New Admin button (super_admin only). Settings view displays AppsFlyer PID='Clickvibe', app_id='id6648798962', platform='ios'. All navigation and UI elements working correctly."
 
   - task: "Publisher Views (Dashboard, Tracking Links, Reports)"
     implemented: true
-    working: "NA"
+    working: false
     file: "/app/components/publisher/*.jsx"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "Publisher login failed with 'Invalid credentials' error. Publisher user (pop@test.com / pop123) does not exist in database. The Add User flow in Publishers tab needs to be completed to create the publisher user account. Once created, publisher portal should show limited sidebar (Dashboard, My Tracking Links, Reports) without admin-only options."
 
 metadata:
   created_by: "main_agent"
-  version: "1.0"
-  test_sequence: 2
-  run_ui: false
+  version: "1.2"
+  test_sequence: 4
+  run_ui: true
 
 test_plan:
-  current_focus: []
-  stuck_tasks: []
+  current_focus:
+    - "Publisher Views (Dashboard, Tracking Links, Reports)"
+  stuck_tasks:
+    - "Publisher Views (Dashboard, Tracking Links, Reports)"
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
   - agent: "main"
-    message: "MVP complete. All backend endpoints implemented. End-to-end flow verified manually (super admin login -> create publisher POPCULTURE -> create Polymarket campaign -> assign -> create placement -> generate tracking link -> hit /api/click/{code} -> 302 to AppsFlyer with correct params). AppsFlyer manual sync verified with real API token (installs_report returned 1 row). Please run backend tests on all endpoints with focus on: 1) auth roles enforcement (publisher cannot see admin endpoints, only super_admin can POST /users), 2) click endpoint redirect correctness and click row persistence, 3) publisher scoping (publisher sees only their data), 4) report aggregation correctness, 5) CSV export. Login: admin@clickvibe.com / admin123. The in_app_events_report from AppsFlyer hit their daily download limit during my test; this is expected and not a bug."
+    message: "Phase 2 complete: Scheduled AppsFlyer sync (hourly + nightly 7-day re-sync via node-cron) with retries, dedupe, duration tracking, failure notifications. Daily email reports via Resend (publisher + admin summary with CSV attachment) verified working - emails actually delivered. New admin pages: enhanced Sync view with scheduler status panel + Emails view for manual send + history. Please run UI testing now."
   - agent: "testing"
-    message: "Comprehensive backend testing completed. All 41 tests passed (100% success rate). Tested all critical endpoints: Auth (login, /auth/me, invalid credentials, no token protection), Publishers CRUD + user creation, Campaigns CRUD + assignment, Placements CRUD, Tracking Links with short_url generation, Click redirect (public endpoint, 302 redirect, correct AppsFlyer URL format with clickid=cv_*, inactive entity rejection), Settings GET/PUT, Admin Users (super_admin only), AppsFlyer Sync (both reports hit daily limit as expected), Admin Reports (overview, group_by, CSV export), Publisher-scoped APIs (me, campaigns, tracking-links, reports, CSV export, access control). All endpoints working correctly with proper authentication, authorization, data validation, and error handling. No critical issues found."
+    message: "Comprehensive backend testing completed. All 41 tests passed (100% success rate)."
+  - agent: "testing"
+    message: "Frontend UI testing completed. Admin flows working perfectly (13/15 scenarios passed): Login, Dashboard, Publishers, Campaigns, Tracking Links, Reports, AppsFlyer Sync, Daily Emails, Admin Users, Settings, Logout all functional. Click redirect working correctly (redirects to app.appsflyer.com then to App Store as expected). CRITICAL ISSUE: Publisher user (pop@test.com) does not exist - the Add User flow in Publishers tab needs to be completed manually or via UI to create publisher login. Once created, publisher portal should work. All admin UI elements, navigation, toasts, and data display working correctly. Blue/white SaaS theme looks clean and professional."
