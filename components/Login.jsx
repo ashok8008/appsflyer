@@ -10,8 +10,8 @@ import { toast } from 'sonner'
 import { BarChart3 } from 'lucide-react'
 
 export default function Login({ onLogin }) {
-  const [email, setEmail] = useState('admin@clickvibe.com')
-  const [password, setPassword] = useState('admin123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
   const submit = async (e) => {
@@ -57,7 +57,6 @@ export default function Login({ onLogin }) {
               <Button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700">
                 {loading ? 'Signing in…' : 'Sign in'}
               </Button>
-              <p className="text-xs text-slate-500 text-center">Default super admin: admin@clickvibe.com / admin123</p>
             </form>
           </CardContent>
         </Card>
