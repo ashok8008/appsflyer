@@ -15,14 +15,16 @@ import { Plus, Link2 } from 'lucide-react'
 export default function CampaignsView() {
   const [list, setList] = useState([])
   const [publishers, setPublishers] = useState([])
+  const [assignments, setAssignments] = useState([])
   const [open, setOpen] = useState(false)
   const [assignDialog, setAssignDialog] = useState(null)
-  const [form, setForm] = useState({ campaign_name: 'Polymarket', public_code: 'POLYMARKET', app_name: 'Polymarket', payout_type: 'CPI', payout_amount: '2.00', currency: 'USD', allowed_geos: '' })
-  const [assignForm, setAssignForm] = useState({ publisher_id: '', custom_payout_amount: '' })
+  const [form, setForm] = useState({ campaign_name: 'Polymarket', public_code: 'POLYMARKET', app_name: 'Polymarket', payout_type: 'CPA', payout_amount: '50', currency: 'USD', allowed_geos: '' })
+  const [assignForm, setAssignForm] = useState({ publisher_id: '', tracking_mode: 'direct', direct_polymarket_url: '', custom_payout_amount: '' })
 
   const load = () => {
     api('/campaigns').then(setList).catch(e => toast.error(e.message))
     api('/publishers').then(setPublishers).catch(() => {})
+    api('/publisher-campaigns').then(setAssignments).catch(() => {})
   }
   useEffect(() => { load() }, [])
 
@@ -30,16 +32,16 @@ export default function CampaignsView() {
     try {
       const body = { ...form, allowed_geos: form.allowed_geos.split(',').map(s => s.trim()).filter(Boolean) }
       await api('/campaigns', { method: 'POST', body })
-      toast.success('Campaign created')
-      setOpen(false)
-      load()
+      toast.success('Campaign created'); setOpen(false); load()
     } catch (e) { toast.error(e.message) }
   }
   const assign = async () => {
     try {
-      await api(`/campaigns/${assignDialog.id}/assign`, { method: 'POST', body: assignForm })
-      toast.success('Campaign assigned')
-      setAssignDialog(null); setAssignForm({ publisher_id: '', custom_payout_amount: '' })
+      const suggested = assignForm.tracking_mode === 'clickvibe' ? '' : assignForm.direct_polymarket_url
+      await api(`/campaigns/${assignDialog.id}/assign`, { method: 'POST', body: { ...assignForm, direct_polymarket_url: suggested } })
+      toast.success('Assigned')
+      setAssignDialog(null); setAssignForm({ publisher_id: '', tracking_mode: 'direct', direct_polymarket_url: '', custom_payout_amount: '' })
+      load()
     } catch (e) { toast.error(e.message) }
   }
   const toggle = async (c) => {
@@ -47,12 +49,22 @@ export default function CampaignsView() {
     load()
   }
 
+  // When publisher changes, auto-fill direct URL based on Polymarket pattern
+  const updatePublisher = (pid) => {
+    const pub = publishers.find(p => p.id === pid)
+    if (!pub) return setAssignForm({ ...assignForm, publisher_id: pid })
+    const autoUrl = `https://polymarket-app.onelink.me/S8ac/${pub.public_code}`
+    setAssignForm({ ...assignForm, publisher_id: pid, direct_polymarket_url: autoUrl })
+  }
+
+  const assignCount = (cid) => assignments.filter(a => a.campaign_id === cid).length
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Campaigns</h1>
-          <p className="text-slate-500">Create and assign campaigns/offers to publishers</p>
+          <h1 className="text-3xl font-bold text-slate-900">Campaigns / Offers</h1>
+          <p className="text-slate-500">Polymarket is the primary offer. Direct URLs preferred for existing publishers.</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button className="bg-blue-600 hover:bg-blue-700"><Plus className="w-4 h-4 mr-1" />New Campaign</Button></DialogTrigger>
@@ -61,9 +73,8 @@ export default function CampaignsView() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Name *</Label><Input value={form.campaign_name} onChange={e => setForm({ ...form, campaign_name: e.target.value })} /></div>
-                <div><Label>Code (af_c_id) *</Label><Input value={form.public_code} onChange={e => setForm({ ...form, public_code: e.target.value.toUpperCase() })} /></div>
+                <div><Label>Code *</Label><Input value={form.public_code} onChange={e => setForm({ ...form, public_code: e.target.value.toUpperCase() })} /></div>
               </div>
-              <div><Label>App Name</Label><Input value={form.app_name} onChange={e => setForm({ ...form, app_name: e.target.value })} /></div>
               <div className="grid grid-cols-3 gap-3">
                 <div><Label>Payout type</Label>
                   <Select value={form.payout_type} onValueChange={v => setForm({ ...form, payout_type: v })}>
@@ -89,7 +100,7 @@ export default function CampaignsView() {
         <CardContent className="p-0">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b text-slate-600">
-              <tr><th className="text-left p-3">Name</th><th className="text-left">Code</th><th className="text-left">Payout</th><th className="text-left">Platform</th><th className="text-left">Status</th><th className="text-right p-3">Actions</th></tr>
+              <tr><th className="text-left p-3">Name</th><th className="text-left">Code</th><th className="text-left">Payout</th><th className="text-left">Publishers</th><th className="text-left">Status</th><th className="text-right p-3">Actions</th></tr>
             </thead>
             <tbody>
               {list.map(c => (
@@ -97,10 +108,10 @@ export default function CampaignsView() {
                   <td className="p-3 font-medium">{c.campaign_name}</td>
                   <td><code className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">{c.public_code}</code></td>
                   <td>{c.payout_type} ${c.payout_amount} {c.currency}</td>
-                  <td>{c.platform}</td>
+                  <td><Badge variant="outline">{assignCount(c.id)} assigned</Badge></td>
                   <td><Badge className={c.status === 'active' ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-slate-200 text-slate-600 hover:bg-slate-200'}>{c.status}</Badge></td>
                   <td className="p-3 text-right space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => setAssignDialog(c)}><Link2 className="w-3 h-3 mr-1" />Assign</Button>
+                    <Button variant="outline" size="sm" onClick={() => setAssignDialog(c)}><Link2 className="w-3 h-3 mr-1" />Assign Publisher</Button>
                     <Button variant="outline" size="sm" onClick={() => toggle(c)}>{c.status === 'active' ? 'Disable' : 'Enable'}</Button>
                   </td>
                 </tr>
@@ -113,16 +124,30 @@ export default function CampaignsView() {
 
       <Dialog open={!!assignDialog} onOpenChange={(o) => !o && setAssignDialog(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Assign {assignDialog?.campaign_name} to publisher</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Assign publisher to {assignDialog?.campaign_name}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>Publisher</Label>
-              <Select value={assignForm.publisher_id} onValueChange={v => setAssignForm({ ...assignForm, publisher_id: v })}>
+              <Select value={assignForm.publisher_id} onValueChange={updatePublisher}>
                 <SelectTrigger><SelectValue placeholder="Select publisher" /></SelectTrigger>
+                <SelectContent>{publishers.map(p => <SelectItem key={p.id} value={p.id}>{p.name} ({p.public_code})</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div><Label>Tracking mode</Label>
+              <Select value={assignForm.tracking_mode} onValueChange={v => setAssignForm({ ...assignForm, tracking_mode: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {publishers.map(p => <SelectItem key={p.id} value={p.id}>{p.name} ({p.public_code})</SelectItem>)}
+                  <SelectItem value="direct">Direct URL only</SelectItem>
+                  <SelectItem value="clickvibe">Clickvibe tracking URL</SelectItem>
+                  <SelectItem value="both">Both</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {assignForm.tracking_mode !== 'clickvibe' && (
+              <div><Label>Direct Polymarket URL</Label>
+                <Input value={assignForm.direct_polymarket_url} onChange={e => setAssignForm({ ...assignForm, direct_polymarket_url: e.target.value })} placeholder="https://polymarket-app.onelink.me/S8ac/VICE" />
+                <p className="text-xs text-slate-500 mt-1">Auto-filled from publisher code. Edit if different.</p>
+              </div>
+            )}
             <div><Label>Custom payout amount (optional)</Label><Input type="number" step="0.01" value={assignForm.custom_payout_amount} onChange={e => setAssignForm({ ...assignForm, custom_payout_amount: e.target.value })} /></div>
           </div>
           <DialogFooter><Button onClick={assign} className="bg-blue-600 hover:bg-blue-700">Assign</Button></DialogFooter>

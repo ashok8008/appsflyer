@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { BarChart3, Users, Briefcase, Link2, FileBarChart, RefreshCw, Settings, UserCog, LogOut, MapPin, Mail } from 'lucide-react'
+import { BarChart3, Users, Briefcase, Link2, FileBarChart, RefreshCw, Settings, UserCog, LogOut, MapPin, Mail, Upload } from 'lucide-react'
 import DashboardView from './DashboardView'
 import PublishersView from './PublishersView'
 import CampaignsView from './CampaignsView'
@@ -10,15 +10,17 @@ import TrackingLinksView from './TrackingLinksView'
 import ReportsView from './ReportsView'
 import SyncView from './SyncView'
 import EmailsView from './EmailsView'
+import UploadsView from './UploadsView'
 import AdminUsersView from './AdminUsersView'
 import SettingsView from './SettingsView'
 
 const nav = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
   { id: 'publishers', label: 'Publishers', icon: Users },
-  { id: 'campaigns', label: 'Campaigns', icon: Briefcase },
+  { id: 'campaigns', label: 'Campaigns / Offers', icon: Briefcase },
   { id: 'placements', label: 'Placements', icon: MapPin },
   { id: 'links', label: 'Tracking Links', icon: Link2 },
+  { id: 'uploads', label: 'Uploads', icon: Upload },
   { id: 'reports', label: 'Reports', icon: FileBarChart },
   { id: 'sync', label: 'AppsFlyer Sync', icon: RefreshCw },
   { id: 'emails', label: 'Daily Emails', icon: Mail },
@@ -74,6 +76,7 @@ export default function AdminApp({ me, onLogout }) {
           {view === 'campaigns' && <CampaignsView />}
           {view === 'placements' && <PlacementsView />}
           {view === 'links' && <TrackingLinksView />}
+          {view === 'uploads' && <UploadsView />}
           {view === 'reports' && <ReportsView />}
           {view === 'sync' && <SyncView />}
           {view === 'emails' && <EmailsView />}

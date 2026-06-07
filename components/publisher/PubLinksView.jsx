@@ -2,62 +2,76 @@
 
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api-client'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, ExternalLink } from 'lucide-react'
 
 export default function PubLinksView() {
   const [list, setList] = useState([])
   const [copiedId, setCopiedId] = useState(null)
 
-  useEffect(() => { api('/publisher/tracking-links').then(setList).catch(e => toast.error(e.message)) }, [])
+  useEffect(() => { api('/publisher/links').then(setList).catch(e => toast.error(e.message)) }, [])
 
   const copy = (url, id) => {
     navigator.clipboard.writeText(url)
     setCopiedId(id)
-    toast.success('Copied to clipboard')
+    toast.success('Copied')
     setTimeout(() => setCopiedId(null), 1500)
   }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">My Tracking Links</h1>
-        <p className="text-slate-500">Copy and use these tracking URLs. Add sub IDs as needed.</p>
+        <h1 className="text-3xl font-bold text-slate-900">My Offers &amp; Links</h1>
+        <p className="text-slate-500">Copy your assigned tracking URLs and share them.</p>
       </div>
-      <Card>
-        <CardContent className="p-0">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b text-slate-600">
-              <tr><th className="text-left p-3">Tracking URL</th><th className="text-left">Campaign</th><th className="text-left">Placement</th><th className="text-left">Status</th><th className="text-right p-3">Copy</th></tr>
-            </thead>
-            <tbody>
-              {list.map(l => (
-                <tr key={l.id} className="border-b hover:bg-slate-50">
-                  <td className="p-3"><code className="text-xs bg-slate-100 px-2 py-1 rounded break-all">{l.short_url}</code></td>
-                  <td>{l.campaign?.campaign_name}</td>
-                  <td>{l.placement?.name}</td>
-                  <td><Badge className={l.status === 'active' ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-slate-200 text-slate-600 hover:bg-slate-200'}>{l.status}</Badge></td>
-                  <td className="p-3 text-right">
-                    <Button size="sm" variant="outline" onClick={() => copy(l.short_url, l.id)}>
-                      {copiedId === l.id ? <Check className="w-3 h-3 mr-1 text-green-600" /> : <Copy className="w-3 h-3 mr-1" />}
-                      {copiedId === l.id ? 'Copied' : 'Copy'}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-              {list.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-slate-400">No links yet — ask your admin to generate one</td></tr>}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="pt-6 text-sm text-slate-600">
-          <div className="font-semibold text-slate-900 mb-2">Adding Sub IDs</div>
-          <p>Append parameters like <code className="bg-slate-100 px-1">?sub_id_1=source&amp;sub_id_2=creative&amp;sub_id_3=adset&amp;sub_id_4=custom&amp;referral_url=https://yoursite.com</code> to your tracking URL.</p>
-        </CardContent>
-      </Card>
+      {list.length === 0 && (
+        <Card><CardContent className="pt-6 text-center text-slate-400">No offers assigned yet — your admin will assign offers to you.</CardContent></Card>
+      )}
+      {list.map(item => (
+        <Card key={item.assignment_id}>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span>{item.campaign?.campaign_name}</span>
+                <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">{item.payout_type} ${item.payout_amount}</Badge>
+                <Badge variant="outline">{item.tracking_mode}</Badge>
+              </div>
+              <Badge className={item.status === 'active' ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-slate-200 text-slate-600 hover:bg-slate-200'}>{item.status}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {item.direct_polymarket_url && (
+              <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-3">
+                <div className="text-xs uppercase tracking-wide text-blue-700 font-semibold mb-1">Your direct tracking link</div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-sm bg-white border rounded px-3 py-2 break-all">{item.direct_polymarket_url}</code>
+                  <Button size="sm" variant="outline" onClick={() => copy(item.direct_polymarket_url, item.assignment_id)}>
+                    {copiedId === item.assignment_id ? <><Check className="w-3 h-3 mr-1 text-green-600" />Copied</> : <><Copy className="w-3 h-3 mr-1" />Copy</>}
+                  </Button>
+                  <a href={item.direct_polymarket_url} target="_blank" rel="noreferrer"><Button size="sm" variant="outline"><ExternalLink className="w-3 h-3" /></Button></a>
+                </div>
+              </div>
+            )}
+            {item.clickvibe_links && item.clickvibe_links.length > 0 && item.clickvibe_links.map(cl => (
+              <div key={cl.id} className="rounded-lg border p-3">
+                <div className="text-xs uppercase tracking-wide text-slate-500 font-semibold mb-1">Clickvibe tracking link {cl.placement?.name ? `· ${cl.placement.name}` : ''}</div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-sm bg-slate-50 border rounded px-3 py-2 break-all">{cl.short_url}</code>
+                  <Button size="sm" variant="outline" onClick={() => copy(cl.short_url, cl.id)}>
+                    {copiedId === cl.id ? <><Check className="w-3 h-3 mr-1 text-green-600" />Copied</> : <><Copy className="w-3 h-3 mr-1" />Copy</>}
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {!item.direct_polymarket_url && (!item.clickvibe_links || item.clickvibe_links.length === 0) && (
+              <div className="text-sm text-slate-400 italic">No URL configured yet — ask your admin.</div>
+            )}
+          </CardContent>
+        </Card>
+      ))}
     </div>
   )
 }

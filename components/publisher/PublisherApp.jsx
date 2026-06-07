@@ -8,7 +8,7 @@ import PubReportsView from './PubReportsView'
 
 const nav = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-  { id: 'links', label: 'My Tracking Links', icon: Link2 },
+  { id: 'links', label: 'My Offers & Links', icon: Link2 },
   { id: 'reports', label: 'Reports', icon: FileBarChart },
 ]
 
